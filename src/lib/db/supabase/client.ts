@@ -16,6 +16,13 @@ export function getSupabaseAdminClient(): SupabaseClient {
   }
   adminClient = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      // Next.js'in global fetch'i Data Cache ile sarmalar; bu olmadan
+      // Supabase REST çağrıları route "force-dynamic" olsa bile önbelleğe
+      // alınabilir ve yeni/güncellenmiş kayıtlar bir süre eski veri olarak
+      // görünür. Finansal veri için bu kabul edilemez, her çağrı taze olmalı.
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
   });
   return adminClient;
 }

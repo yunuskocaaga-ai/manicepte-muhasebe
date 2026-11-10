@@ -50,3 +50,5 @@ next-env.d.ts
 # Supabase CLI yerel önbelleği
 /supabase/.temp/
 
+
+.vercel
