@@ -92,4 +92,32 @@ describe("runReminderSweep", () => {
     expect(second.sent).toHaveLength(0);
     expect(second.skippedAlreadySent).toBeGreaterThan(0);
   });
+
+  it("resend modunda EMAIL_API_KEY tanımlı değilse gönderimi başarısız sayar, sahte başarı raporlamaz", async () => {
+    const yusuf = await repo.persons.create({ name: "Yusuf" });
+    await repo.expenses.create({
+      name: "Netflix",
+      amountKurus: 10000,
+      month: "2026-11",
+      dueDay: 11,
+      splitMode: "equal",
+      participantPersonIds: [yusuf.id],
+    });
+
+    const prevMode = process.env.NOTIFICATIONS_MODE;
+    process.env.NOTIFICATIONS_MODE = "resend";
+    try {
+      const result = await runReminderSweep(repo, NOW);
+      expect(result.sent).toHaveLength(0);
+      expect(result.failed).toHaveLength(1);
+      expect(result.failed[0].error).toContain("EMAIL_API_KEY");
+
+      // Kayıt yazılmadığı için aynı gün tekrar denenebilmeli (dedup kaydı yok).
+      const again = await runReminderSweep(repo, NOW);
+      expect(again.failed).toHaveLength(1);
+      expect(again.skippedAlreadySent).toBe(0);
+    } finally {
+      process.env.NOTIFICATIONS_MODE = prevMode;
+    }
+  });
 });

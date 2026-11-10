@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/hatirlatmalar",
-      "schedule": "0 7 * * *"
+      "schedule": "0 4 * * *"
     }
   ]
 }

@@ -12,12 +12,19 @@ const ACTION_LABEL: Record<string, string> = {
 export default async function AyarlarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; restored?: string; reminderSent?: string; reminderSkipped?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    restored?: string;
+    reminderSent?: string;
+    reminderSkipped?: string;
+    reminderFailed?: string;
+  }>;
 }) {
   const params = await searchParams;
   const demo = isDemoMode();
   const repo = getRepository();
   const recentChanges = await repo.auditLog.listRecent(20);
+  const notificationsMode = process.env.NOTIFICATIONS_MODE === "resend" ? "resend" : "simulated";
 
   return (
     <div>
@@ -62,8 +69,9 @@ export default async function AyarlarPage({
       <Card>
         <h2 className="mb-2 text-sm font-semibold text-slate-700">Hatırlatmaları Test Et</h2>
         <p className="mb-3 text-sm text-slate-500">
-          Simülasyon modunda ödeme hatırlatma taramasını manuel tetikler (gerçek e-posta gönderilmez, sadece
-          kayıt veritabanına eklenir). Üretimde bu işlem Vercel Cron ile otomatik çalışır (bkz. vercel.json).
+          {notificationsMode === "resend"
+            ? "Ödeme hatırlatma taramasını manuel tetikler ve gerçek e-posta gönderir (Resend). Üretimde bu işlem Vercel Cron ile otomatik çalışır (bkz. vercel.json)."
+            : "Simülasyon modunda ödeme hatırlatma taramasını manuel tetikler (gerçek e-posta gönderilmez, sadece kayıt veritabanına eklenir). Üretimde bu işlem Vercel Cron ile otomatik çalışır (bkz. vercel.json)."}
         </p>
         <form action={runReminderTestAction}>
           <button type="submit" className={buttonSecondary}>
@@ -72,7 +80,11 @@ export default async function AyarlarPage({
         </form>
         {params.reminderSent !== undefined && (
           <p className="mt-2 text-sm text-slate-600">
-            Gönderilen (simüle): {params.reminderSent} · Zaten gönderilmiş (atlanan): {params.reminderSkipped}
+            Gönderilen{notificationsMode === "simulated" ? " (simüle)" : ""}: {params.reminderSent} · Zaten
+            gönderilmiş (atlanan): {params.reminderSkipped}
+            {params.reminderFailed && Number(params.reminderFailed) > 0 && (
+              <span className="text-red-700"> · Başarısız: {params.reminderFailed}</span>
+            )}
           </p>
         )}
       </Card>

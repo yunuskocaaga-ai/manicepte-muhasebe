@@ -27,6 +27,8 @@ export async function restoreBackupAction(formData: FormData): Promise<void> {
 export async function runReminderTestAction(): Promise<void> {
   const repo = getRepository();
   const result = await runReminderSweep(repo);
-  redirect(`/ayarlar?reminderSent=${result.sent.length}&reminderSkipped=${result.skippedAlreadySent}`);
+  redirect(
+    `/ayarlar?reminderSent=${result.sent.length}&reminderSkipped=${result.skippedAlreadySent}&reminderFailed=${result.failed.length}`,
+  );
 }
 

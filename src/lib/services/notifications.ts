@@ -12,9 +12,42 @@ export interface SimulatedEmail {
 export interface ReminderSweepResult {
   sent: SimulatedEmail[];
   skippedAlreadySent: number;
+  failed: { to: string; subject: string; error: string }[];
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * NOTIFICATIONS_MODE=resend olduğunda Resend REST API'sine doğrudan fetch
+ * ile gönderim yapar (ek bir SDK bağımlılığı eklemeden). simulated modda
+ * hiçbir ağ çağrısı yapılmaz. Gönderim başarısız olursa hata fırlatır —
+ * sessizce yutup "gönderildi" gibi davranmaz; çağıran taraf notification_log
+ * kaydını yalnızca gerçekten gönderim başarılıysa simulated=false yazar.
+ */
+async function sendRealEmail(email: SimulatedEmail): Promise<void> {
+  const apiKey = process.env.EMAIL_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) {
+    throw new Error("NOTIFICATIONS_MODE=resend için EMAIL_API_KEY ve EMAIL_FROM tanımlı olmalı");
+  }
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: email.to,
+      subject: email.subject,
+      text: email.body,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Resend gönderimi başarısız (${res.status}): ${detail}`);
+  }
+}
 
 /**
  * Ödenmemiş giderler için ödeme tarihinden 1 gün önce ve gecikmede e-posta
@@ -25,6 +58,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export async function runReminderSweep(repo: Repository, now: Date = new Date()): Promise<ReminderSweepResult> {
   const adminEmail = process.env.DEMO_ADMIN_EMAIL ?? "yonetici@manicepte.local";
+  const isReal = process.env.NOTIFICATIONS_MODE === "resend";
   const localNow = nowInIstanbul(now);
   const todayUtc = istanbulMidnightUtc(localNow);
   const todayKey = istanbulDateKey(now);
@@ -32,6 +66,7 @@ export async function runReminderSweep(repo: Repository, now: Date = new Date())
 
   const months = [previousMonthKey(currentMonthKey(now)), currentMonthKey(now)];
   const sent: SimulatedEmail[] = [];
+  const failed: ReminderSweepResult["failed"] = [];
   let skipped = 0;
 
   for (const month of months) {
@@ -66,15 +101,27 @@ export async function runReminderSweep(repo: Repository, now: Date = new Date())
               ).toFixed(2)} TL ödenmedi.`,
             };
 
+      if (isReal) {
+        try {
+          await sendRealEmail(email);
+        } catch (err) {
+          // Gönderim başarısızsa notification_log'a yazılmaz; bir sonraki
+          // taramada (aynı gün içinde) tekrar denenebilir — sessizce
+          // "gönderildi" gibi raporlanmaz.
+          failed.push({ to: email.to, subject: email.subject, error: (err as Error).message });
+          continue;
+        }
+      }
+
       await repo.notifications.record({
         expenseId: status.expense.id,
         type,
         dateKey: todayKey,
-        simulated: true,
+        simulated: !isReal,
       });
       sent.push(email);
     }
   }
 
-  return { sent, skippedAlreadySent: skipped };
+  return { sent, skippedAlreadySent: skipped, failed };
 }

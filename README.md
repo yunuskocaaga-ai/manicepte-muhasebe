@@ -128,24 +128,29 @@ e-posta/şifre ile giriş yapın. Demo modunda tüm veriler bu makinedeki
 
 ## E-posta Hatırlatmaları
 
-Şu anda `NOTIFICATIONS_MODE=simulated` ile çalışır: ödeme tarihinden 1 gün
-önce ve gecikmede "e-posta" üretilir ama gerçekten gönderilmez, sadece
-`notification_log` tablosuna/dosyasına kaydedilir (tekrar gönderimi önler).
-`/ayarlar` sayfasından manuel tetikleyip simüle edilen e-postaları
-görebilirsiniz.
+İki mod desteklenir (`NOTIFICATIONS_MODE`):
 
-Gerçek e-posta servisine (örn. Resend) bağlamak için:
+- `simulated` (varsayılan): ödeme tarihinden 1 gün önce ve gecikmede
+  "e-posta" üretilir ama gerçekten gönderilmez, sadece `notification_log`
+  tablosuna/dosyasına kaydedilir. `/ayarlar` sayfasından manuel tetikleyip
+  simüle edilen e-postaları görebilirsiniz.
+- `resend`: `src/lib/services/notifications.ts` içindeki `sendRealEmail`,
+  Resend'in REST API'sine (`https://api.resend.com/emails`) doğrudan
+  `fetch` ile gönderim yapar (ek SDK bağımlılığı yok). `EMAIL_API_KEY`
+  (Resend API key) ve `EMAIL_FROM` (Resend'de doğrulanmış gönderici
+  adresi) doldurulmalıdır. Gönderim başarısız olursa `notification_log`'a
+  yazılmaz (sahte "gönderildi" durumu oluşmaz) — bir sonraki tarama aynı
+  gün içinde tekrar deneyebilir.
 
-1. `src/lib/services/notifications.ts` içindeki `runReminderSweep`
-   fonksiyonunun ürettiği `SimulatedEmail` nesnelerini gerçek bir gönderim
-   çağrısına (örn. Resend SDK) bağlayın.
-2. `.env.local`'de `EMAIL_API_KEY` ve `EMAIL_FROM` doldurun,
-   `NOTIFICATIONS_MODE=resend` gibi bir değere çevirip koşullu gönderim
-   ekleyin.
-3. `vercel.json` içindeki cron tanımı (`/api/cron/hatirlatmalar`, her gün
-   07:00) zaten hazırdır; Vercel'e deploy edildiğinde otomatik çalışır.
-   `CRON_SECRET` ortam değişkenini ayarlarsanız endpoint
-   `Authorization: Bearer <CRON_SECRET>` ile korunur.
+Aynı gider + tür + gün için tekrar gönderimi `notification_log` üzerindeki
+`unique(expense_id, type, date_key)` kısıtı önler.
+
+`vercel.json` içindeki cron tanımı (`/api/cron/hatirlatmalar`, her gün
+04:00 UTC = 07:00 Europe/Istanbul — Türkiye 2016'dan beri yaz saati
+uygulamadığı için bu fark sabittir) zaten hazırdır; Vercel'e deploy
+edildiğinde otomatik çalışır. `CRON_SECRET` ortam değişkeni **zorunludur**;
+tanımlı değilse endpoint 500 döner ve güvenli biçimde kapalı kalır
+(fail-closed), asla korumasız açık bırakılmaz.
 
 ## Mimari Özeti
 
