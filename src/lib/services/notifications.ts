@@ -72,7 +72,11 @@ export async function runReminderSweep(repo: Repository, now: Date = new Date())
   for (const month of months) {
     const summary = await computeMonthSummary(repo, month);
     for (const status of [...summary.upcoming, ...summary.overdue]) {
-      const dueUtc = new Date(status.dueDate.getFullYear(), status.dueDate.getMonth(), status.dueDate.getDate());
+      // dueDate sunucunun yerel saat dilimiyle oluşturulur (Vercel'de UTC);
+      // Istanbul gece yarısına denk gelen gerçek UTC anına çevrilmeden
+      // tomorrowUtc ile karşılaştırılırsa sunucu Istanbul'da değilken hiçbir
+      // zaman eşleşmez ve "yarın ödeme günü" hatırlatması asla tetiklenmez.
+      const dueUtc = istanbulMidnightUtc(status.dueDate);
       const isTomorrow = dueUtc.getTime() === tomorrowUtc.getTime();
       const isOverdue = status.isOverdue;
       const type = isOverdue ? "overdue" : isTomorrow ? "before_due" : null;

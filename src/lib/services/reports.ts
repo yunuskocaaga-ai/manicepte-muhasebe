@@ -24,6 +24,13 @@ export async function computeExpenseStatus(repo: Repository, expense: Expense): 
   const remainingKurus = balances.reduce((acc, b) => acc + b.remainingKurus, 0);
   const dueDate = dueDateForMonth(expense.month, expense.dueDay);
   const todayUtc = istanbulMidnightUtc(nowInIstanbul());
+  // dueDate, sunucunun yerel saat dilimiyle (Vercel'de UTC) oluşturulur; bu
+  // yüzden karşılaştırmadan önce Europe/Istanbul gece yarısına denk gelen
+  // gerçek UTC anına çevrilir. Aksi halde sunucu UTC'de çalışırken (Istanbul
+  // +3 saat ileride) "bugün"/"yarın" karşılaştırmaları yanlış çıkar — bu,
+  // before_due hatırlatmasının hiç tetiklenmemesine sebep olan gerçek bir
+  // hatadır (bkz. notifications.ts).
+  const dueUtc = istanbulMidnightUtc(dueDate);
   return {
     expense,
     totalKurus: expense.amountKurus,
@@ -31,7 +38,7 @@ export async function computeExpenseStatus(repo: Repository, expense: Expense): 
     remainingKurus,
     fullyPaid: remainingKurus === 0,
     dueDate,
-    isOverdue: remainingKurus > 0 && dueDate.getTime() < todayUtc.getTime(),
+    isOverdue: remainingKurus > 0 && dueUtc.getTime() < todayUtc.getTime(),
   };
 }
 
