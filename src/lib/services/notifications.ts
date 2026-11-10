@@ -57,7 +57,9 @@ async function sendRealEmail(email: SimulatedEmail): Promise<void> {
  * sayesinde önlenir.
  */
 export async function runReminderSweep(repo: Repository, now: Date = new Date()): Promise<ReminderSweepResult> {
-  const adminEmail = process.env.DEMO_ADMIN_EMAIL ?? "yonetici@manicepte.local";
+  // ADMIN_EMAIL, Supabase (canlı) modunda bildirim alıcısıdır; DEMO_ADMIN_EMAIL
+  // yalnızca demo girişi içindir ve üretimde tanımlı değildir.
+  const adminEmail = process.env.ADMIN_EMAIL ?? process.env.DEMO_ADMIN_EMAIL ?? "yonetici@manicepte.local";
   const isReal = process.env.NOTIFICATIONS_MODE === "resend";
   const localNow = nowInIstanbul(now);
   const todayUtc = istanbulMidnightUtc(localNow);
