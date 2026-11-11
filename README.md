@@ -72,14 +72,26 @@ e-posta/şifre ile giriş yapın. Demo modunda tüm veriler bu makinedeki
 
 - `npm run lint` → hatasız
 - `npm run typecheck` → hatasız
-- `npm run test` → **43/43 geçti** (Vitest, bölüştürme/borç motoru/yedek/
+- `npm run test` → **44/44 geçti** (Vitest, bölüştürme/borç motoru/yedek/
   düzenli gider/hatırlatma testleri dahil)
 - `npm run test:e2e` → **6/6 geçti** (Desktop Chrome + Mobile Chrome
   viewport'larında giriş, kişi ekleme, gider oluşturma, ödeme kaydetme,
-  borçlar sayfası ve yetkisiz erişim yönlendirmesi)
+  borçlar sayfası ve yetkisiz erişim yönlendirmesi — demo moduna karşı)
 - `npm run build` → başarılı (tüm sayfalar doğru biçimde dinamik render
   olarak işaretli; kimlik doğrulamalı/canlı veri gösteren hiçbir sayfa
   yanlışlıkla statik önbelleğe alınmıyor)
+- **Gerçek Supabase projesine karşı canlı doğrulama** (izole test
+  hesabı/verisiyle, sonradan temizlendi): giriş, kişi/gider/ödeme, başkası
+  adına ödeme → borç oluşumu, kısmi geri ödeme, aşım koruması, dekont
+  yükleme/indirme, düzenli gider dönem üretimi, raporlar, çöp
+  kutusu/geri yükleme, yedek export+restore, RLS (anon key hem tablo hem
+  storage'da engelleniyor), gerçek Resend e-postası (Europe/Istanbul
+  saat dilimiyle doğru tetikleme + tekrar göndermeme). Bu süreçte üç
+  kritik hata tespit edilip düzeltildi: SQL fonksiyonlarındaki
+  `is_admin()` kontrolü service_role çağrılarında hep başarısız
+  oluyordu, `fn_generate_recurring_period` eşzamanlı çağrılarda
+  "duplicate key" ile sayfayı çökertiyordu, `fn_restore_backup`
+  PostgREST RPC üzerinden WHERE'siz DELETE kısıtına çarpıyordu.
 
 ## Supabase'e Bağlanma (Canlı Mod)
 
@@ -120,11 +132,12 @@ e-posta/şifre ile giriş yapın. Demo modunda tüm veriler bu makinedeki
 7. Dekont/fatura yüklemeleri artık Supabase Storage'daki `receipts` private
    bucket'ına gider; indirme bağlantıları imzalı (signed) URL'dir.
 
-> **Not:** `SupabaseRepository` (`src/lib/db/supabase/repository.ts`) kod
-> olarak tamdır ve demo repository ile aynı iş kurallarını izler, ancak bu
-> ortamda gerçek bir Supabase projesi bulunmadığı için **canlıya karşı test
-> edilmemiştir**. Gerçek bağlantıdan sonra en azından giriş, gider/ödeme
-> akışı ve RLS'in beklendiği gibi çalıştığını manuel doğrulamanız önerilir.
+> **Not:** `SupabaseRepository` (`src/lib/db/supabase/repository.ts`) gerçek
+> bir Supabase projesine karşı canlı olarak doğrulanmıştır (giriş, kişi/
+> gider/ödeme/borç akışı, RLS, yedek export+restore, gerçek e-posta). Bu
+> doğrulama sırasında bulunan üç kritik hata (`is_admin()` yetki kontrolü,
+> düzenli gider üretiminde eşzamanlılık, yedek geri yüklemede WHERE
+> kısıtı) migration `0005`-`0007` ile düzeltilmiştir.
 
 ## E-posta Hatırlatmaları
 
@@ -165,13 +178,24 @@ bilerek çevrimdışı cache'e alınmaz** — bir service worker/offline veri
 önbelleği yoktur; bu, görevin gereksinimine uygun bilinçli bir tasarım
 kararıdır.
 
-## Yapılması Gereken Manuel Adımlar (teslim sonrası)
+## Canlı Durum
 
-- Gerçek kullanım için `.env.local`'deki `SESSION_SECRET` ve
+- **GitHub:** https://github.com/yunuskocaaga-ai/manicepte-muhasebe (Public, `main`)
+- **Supabase projesi:** `manicepte-muhasebe` (`kbovfowwiafjybncqanc`, eu-central-1,
+  ücretsiz plan, kişisel org)
+- **Canlı uygulama:** https://manicepte-muhasebe.vercel.app (Vercel ücretsiz
+  plan, Vercel Authentication koruması kaldırıldı — tek koruma uygulamanın
+  kendi e-posta/şifre girişidir)
+- **E-posta:** Resend ücretsiz plan, `NOTIFICATIONS_MODE=resend`; domain
+  doğrulanmadığı için gönderim yalnızca `ADMIN_EMAIL`'e (kayıtlı Resend
+  hesap e-postası) yapılabilir — bu uygulamanın tek ihtiyacıyla (hatırlatma
+  alıcısı admin'in kendisi) tam örtüşür. Kendi domaininizi doğrularsanız
+  `EMAIL_FROM`'u o domain'den bir adrese çevirebilirsiniz.
+
+## Yapılması Gereken Manuel Adımlar
+
+- Yerel geliştirme için `.env.local`'deki `SESSION_SECRET` ve
   `DEMO_ADMIN_PASSWORD_HASH_B64` değerlerini kendi güçlü değerlerinizle
-  değiştirin.
-- Gerçek Supabase projesi + gerçek e-posta servisi bağlanana kadar
-  uygulama demo modunda, e-posta gönderimi simülasyon modunda kalır.
-- Vercel'e yayın / GitHub deposu oluşturma bilerek yapılmamıştır (görev
-  kapsamı dışında); `vercel.json` ve migration'lar ileride yayın için hazır
-  bırakılmıştır.
+  belirleyin (bu dosya yalnızca demo modda kullanılır, canlıyı etkilemez).
+- İsterseniz kendi domaininizi Resend'de doğrulayıp `EMAIL_FROM`'u
+  güncelleyerek hatırlatmaların başka alıcılara da gidebilmesini sağlayın.

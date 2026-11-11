@@ -168,8 +168,7 @@ function mapNotification(row: any): NotificationLogEntry {
  * fonksiyonlarına (supabase/migrations/0002_functions.sql) RPC ile delege
  * edilir, böylece atomicity veritabanı seviyesinde garanti edilir.
  *
- * NOT: Bu implementasyon gerçek bir Supabase projesine karşı henüz canlı
- * olarak test edilmemiştir (bu ortamda kimlik bilgisi yoktur). SQL
+ * Gerçek bir Supabase projesine karşı canlı olarak doğrulanmıştır; SQL
  * fonksiyonları demo repository ile aynı iş kurallarını izler.
  */
 export class SupabaseRepository implements Repository {
