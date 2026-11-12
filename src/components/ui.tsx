@@ -52,7 +52,7 @@ export const buttonSecondary =
 export const buttonDanger =
   "inline-flex items-center justify-center rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100";
 export const inputClass =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none";
 export const labelClass = "mb-1 block text-sm font-medium text-slate-700";
 
 export function PageTitle({ title, subtitle }: { title: string; subtitle?: string }) {
